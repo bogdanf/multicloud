@@ -32,3 +32,8 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+gcloud-key.pub
+gcloud-key
+resource_ids.log
+config.json
+terraform/.terraform.lock.hcl
