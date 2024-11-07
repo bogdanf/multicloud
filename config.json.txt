@@ -1,0 +1,9 @@
+{
+    "project_id": "your-project-id",
+    "region": "your-region",
+    "vpc_name": "quickstart-network",
+    "bastion_name": "your-bastion-host-name",
+    "admin_password": "your-db-admin_password",
+    "database_name": "",// will be prompted
+    "database_display_name": "" // will be prompted
+  }
