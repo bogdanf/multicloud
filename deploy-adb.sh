@@ -115,14 +115,3 @@ log_message "Database created successfully."
 log_message "Generating wallet..."
 gcloud oracle-database autonomous-databases generate-wallet $DATABASE_DISPLAY_NAME --location=$REGION --password=Welcome1 || { log_message "Failed to generate wallet"; exit 1; }
 log_message "Wallet generated successfully."
-
-# Ask user if they want to download the wallet locally
-read -p "Do you want to download the wallet locally? (y/n): " DOWNLOAD_WALLET_LOCALLY
-
-if [ "$(echo "$DOWNLOAD_WALLET_LOCALLY" | tr '[:upper:]' '[:lower:]')" == "y" ]; then
-  log_message "Downloading wallet locally..."
-  gcloud oracle-database autonomous-databases get-wallet-content $DATABASE_DISPLAY_NAME --location=$REGION --wallet-password=Welcome1 > wallet.zip || { log_message "Failed to download wallet"; exit 1; }
-  log_message "Wallet downloaded successfully."
-else
-  log_message "Skipping wallet download."
-fi
