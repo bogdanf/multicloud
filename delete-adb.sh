@@ -3,15 +3,15 @@
 # Do not exit immediately if any command fails
 set +e
 
-# Set variables
-BASTION_NAME=wspluta-bastion-host-name
-ADMIN_PASSWORD=W3lcomeW3lcome
-DATABASE_NAME=wspluta-database-name
-DATABASE_DISPLAY_NAME=wspluta-display-name
-REGION=europe-west2
-VPC_NAME=quickstart-network
-PROJECT_ID=$(gcloud config get-value project)
-NETWORK_PATH=projects/${PROJECT_ID}/global/networks/$VPC_NAME
+# # Set variables
+# BASTION_NAME=wspluta-bastion-host-name
+# ADMIN_PASSWORD=W3lcomeW3lcome
+# DATABASE_NAME=wspluta-database-name
+# DATABASE_DISPLAY_NAME=wspluta-display-name
+# REGION=europe-west2
+# VPC_NAME=quickstart-network
+# PROJECT_ID=$(gcloud config get-value project)
+# NETWORK_PATH=projects/${PROJECT_ID}/global/networks/$VPC_NAME
 
 # Function to log messages
 log_message() {

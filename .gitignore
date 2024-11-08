@@ -37,3 +37,4 @@ gcloud-key
 resource_ids.log
 config.json
 terraform/.terraform.lock.hcl
+*.log

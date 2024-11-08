@@ -42,8 +42,8 @@ LOG_FILE="resource_ids.log"
 
 # Add SSH key to Compute Engine metadata
 log_message "Adding SSH key to Compute Engine metadata..."
-ssh-keygen -t rsa -f gcloud-key -C "<USER EMAIL>" || { log_message "Failed to generate SSH key"; exit 1; }
-gcloud compute project-info add-metadata --metadata-from-file ssh-keys=<PATH TO>/gcloud-key.pub || { log_message "Failed to add SSH key to metadata"; exit 1; }
+ssh-keygen -t rsa -f gcloud-key -C "wspluta@gmail.com" || { log_message "Failed to generate SSH key"; exit 1; }
+gcloud compute project-info add-metadata --metadata-from-file ssh-keys=gcloud-key.pub || { log_message "Failed to add SSH key to metadata"; exit 1; }
 log_message "SSH key added successfully."
 
 # Create VPC
@@ -54,9 +54,9 @@ log_message "VPC created successfully."
 
 # Create subnets
 log_message "Creating subnets..."
-PRIVATE_SUBNET_ID=$(gcloud compute networks subnets create private-subnet --network=$VPC_NAME --region=$REGION --range=192.168.5.0/24 --enable-private-ip-google-access --format='get(id)' || { log_message "Failed to create private subnet"; exit 1; })
+PRIVATE_SUBNET_ID=$(gcloud compute networks subnets create private-subnet1 --network=$VPC_NAME --region=$REGION --range=192.168.5.0/24 --enable-private-ip-google-access --format='get(id)' || { log_message "Failed to create private subnet"; exit 1; })
 echo "Private Subnet ID: $PRIVATE_SUBNET_ID" >> $LOG_FILE
-PUBLIC_SUBNET_ID=$(gcloud compute networks subnets create public-subnet --network=$VPC_NAME --region=$REGION --range=192.168.4.0/24 --enable-flow-logs --enable-private-ip-google-access --format='get(id)' || { log_message "Failed to create public subnet"; exit 1; })
+PUBLIC_SUBNET_ID=$(gcloud compute networks subnets create public-subnet1 --network=$VPC_NAME --region=$REGION --range=192.168.4.0/24 --enable-flow-logs --enable-private-ip-google-access --format='get(id)' || { log_message "Failed to create public subnet"; exit 1; })
 echo "Public Subnet ID: $PUBLIC_SUBNET_ID" >> $LOG_FILE
 log_message "Subnets created successfully."
 
@@ -74,36 +74,44 @@ BASTION_HOST_ID=$(gcloud compute instances create bastion-host --zone=$REGION-a 
 echo "Bastion Host ID: $BASTION_HOST_ID" >> $LOG_FILE
 log_message "Bastion host created successfully."
 
-# Create Windows VM
-log_message "Creating Windows VM..."
-WINDOWS_VM_ID=$(gcloud compute instances create quickstart-winvm --image-family windows-2022 --image-project windows-cloud --machine-type e2-standard-4 --zone $REGION-a --network $VPC_NAME --network-tier=PREMIUM --subnet public-subnet --boot-disk-size 50GB --boot-disk-type pd-ssd --enable-display-device --tags=bastion --format='get(id)' || { log_message "Failed to create Windows VM"; exit 1; })
-echo "Windows VM ID: $WINDOWS_VM_ID" >> $LOG_FILE
-log_message "Windows VM created successfully."
+# Get bastion host public IP
+BASTION_PUBLIC_IP=$(gcloud compute instances describe bastion-host --zone=$REGION-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+echo "Bastion Public IP: $BASTION_PUBLIC_IP" >> $LOG_FILE
 
-# Describe Windows VM
-log_message "Describing Windows VM..."
-gcloud compute instances describe quickstart-winvm --zone=$REGION-a --format='get(name,networkInterfaces[0].accessConfigs[0].natIP)' || { log_message "Failed to describe Windows VM"; exit 1; }
-log_message "Windows VM described successfully."
+# Write bastion host public IP to bastion_config.json
+echo "{\"bastion_host_public_ip\": \"$BASTION_PUBLIC_IP\"}" > bastion_config.json
+log_message "Bastion host public IP written to bastion_config.json"
 
-# Retry resetting Windows password with exponential backoff
-max_attempts=2
-attempt=0
-while [ $attempt -lt $max_attempts ]; do
-  log_message "Attempting to reset Windows password (attempt ${attempt+1}/${max_attempts})..."
-  if gcloud compute reset-windows-password quickstart-winvm --zone=$REGION-a; then
-    log_message "Windows password reset successfully."
-    break
-  else
-    log_message "Failed to reset Windows password. Retrying in 30 seconds..."
-    sleep 30
-    ((attempt++))
-  fi
-done
+# # Create Windows VM
+# log_message "Creating Windows VM..."
+# WINDOWS_VM_ID=$(gcloud compute instances create quickstart-winvm --image-family windows-2022 --image-project windows-cloud --machine-type e2-standard-4 --zone $REGION-a --network $VPC_NAME --network-tier=PREMIUM --subnet public-subnet --boot-disk-size 50GB --boot-disk-type pd-ssd --enable-display-device --tags=bastion --format='get(id)' || { log_message "Failed to create Windows VM"; exit 1; })
+# echo "Windows VM ID: $WINDOWS_VM_ID" >> $LOG_FILE
+# log_message "Windows VM created successfully."
 
-if [ $attempt -eq $max_attempts ]; then
-  log_message "Failed to reset Windows password after ${max_attempts} attempts."
-  exit 1
-fi
+# # Describe Windows VM
+# log_message "Describing Windows VM..."
+# gcloud compute instances describe quickstart-winvm --zone=$REGION-a --format='get(name,networkInterfaces[0].accessConfigs[0].natIP)' || { log_message "Failed to describe Windows VM"; exit 1; }
+# log_message "Windows VM described successfully."
+
+# # Retry resetting Windows password with exponential backoff
+# max_attempts=2
+# attempt=0
+# while [ $attempt -lt $max_attempts ]; do
+#   log_message "Attempting to reset Windows password (attempt ${attempt+1}/${max_attempts})..."
+#   if gcloud compute reset-windows-password quickstart-winvm --zone=$REGION-a; then
+#     log_message "Windows password reset successfully."
+#     break
+#   else
+#     log_message "Failed to reset Windows password. Retrying in 30 seconds..."
+#     sleep 30
+#     ((attempt++))
+#   fi
+# done
+
+# if [ $attempt -eq $max_attempts ]; then
+#   log_message "Failed to reset Windows password after ${max_attempts} attempts."
+#   exit 1
+# fi
 
 # Create database
 log_message "Creating database..."
@@ -115,3 +123,8 @@ log_message "Database created successfully."
 log_message "Generating wallet..."
 gcloud oracle-database autonomous-databases generate-wallet $DATABASE_DISPLAY_NAME --location=$REGION --password=Welcome1 || { log_message "Failed to generate wallet"; exit 1; }
 log_message "Wallet generated successfully."
+
+# # Run Ansible playbook
+#log_message "Running Ansible playbook..."
+#ansible-playbook -i terraform/inventory.ini terraform/configure_sqlcl.yml
+#log_message "Ansible playbook finished."sh
