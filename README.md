@@ -113,6 +113,7 @@ LOG_FILE="resource_ids.log"
 
 ### Create a VPC Network
 
+Creates a VPC with the given name, and the second block creates two subnets: one for private IP addresses and one for public IP addresses.
 VPC network is a virtual network that provides a secure and isolated environment for your resources.
 
 #### Create VPC
@@ -124,13 +125,15 @@ echo "VPC ID: $VPC_ID" >> $LOG_FILE
 log_message "VPC created successfully."
 ```
 
-#### Create Subnets and Firewall Rules
+### Create Subnets and Firewall Rules
 
 Next, we need to create subnets and firewall rules for our VPC network.
 
 #### Create subnets
 
-Subnets are used to divide a VPC network into smaller segments.
+The reason for creating two subnets, one for private IP addresses and one for public IP addresses, is to provide network isolation for different types of traffic. Private subnets are used to host internal resources that do not need to be accessible from the internet, while public subnets are used to host resources that require internet access.
+
+By separating these subnets, it becomes easier to control network traffic and ensure that private resources remain secure and isolated from the public network. Additionally, enabling private IP access for Google Cloud instances ensures that they have a unique IP address within the VPC, which is not visible or accessible from the internet.
 
 ```bash
 log_message "Creating subnets..."
@@ -143,25 +146,31 @@ log_message "Subnets created successfully."
 
 #### Create firewall rules
 
-Firewall rules control incoming and outgoing traffic to and from our resources.
-
+Creates two firewall rules: one for incoming traffic (ingress) and another for outgoing traffic (egress). The ingress rule allows SSH, HTTP, HTTPS, Autonomous DB, and RDP access from any source (0.0.0.0/0), while the egress rule allows the same traffic to reach the internet. Both rules are associated with the VPC and have a priority of 1000.
 
 ```bash
 log_message "Creating firewall rules..."
 INGRESS_RULE_ID=$(gcloud compute firewall-rules create allow-common-ports --direction=INGRESS --priority=1000 --network=$VPC_NAME --action=ALLOW --rules=tcp:22,tcp:80,tcp:443,tcp:1522,tcp:3389 --source-ranges=0.0.0.0/0 --description="Allow SSH, HTTP, HTTPS, Autonomous DB, and RDP access" --target-tags=bastion --format='get(id)' || { log_message "Failed to create ingress firewall rule"; exit 1; })
 echo "Ingress Firewall Rule ID: $INGRESS_RULE_ID" >> $LOG_FILE
+```  
+
+  The first firewall rule, allow-common-ports, is an ingress rule that allows specific types of traffic from any source (0.0.0.0/0) to reach instances in the VPC. This rule allows SSH, HTTP, HTTPS, Autonomous DB, and RDP access to the VPC. The direction parameter is set to INGRESS, which means that the rule allows traffic coming into the VPC.  
+
+```bash
 EGRESS_RULE_ID=$(gcloud compute firewall-rules create allow-bastion-egress --direction=EGRESS --priority=1000 --network=$VPC_NAME --action=ALLOW --rules=tcp:22,tcp:80,tcp:443,tcp:1522,tcp:3389 --destination-ranges=0.0.0.0/0 --target-tags=bastion --format='get(id)' || { log_message "Failed to create egress firewall rule"; exit 1; })
 echo "Egress Firewall Rule ID: $EGRESS_RULE_ID" >> $LOG_FILE
 log_message "Firewall rules created successfully."
-```
+```  
+
+  The second firewall rule, allow-bastion-egress, is an egress rule that allows specific types of traffic from instances in the VPC to reach the internet. This rule also allows SSH, HTTP, HTTPS, Autonomous DB, and RDP access. The direction parameter is set to EGRESS, which means that the rule allows traffic leaving the VPC.
 
 ### Create a Bastion Host and/or Windows VM
 
-Next, I created a bastion host and Windows VM. 
+Next, I created a bastion host and Windows VM.  
 
 #### Create bastion host
 
-A bastion host is a secure server that acts as an entry point to our VPC network, allowing me to connect to my Oracle Database.
+A bastion host is a secure server that acts as an entry point to our VPC network, allowing to connect to Oracle Database securely.
 
 ```bash
 log_message "Creating bastion host..."
@@ -172,7 +181,7 @@ log_message "Bastion host created successfully."
 
 #### Create Windows VM
 
-Windows VM is a virtual machine that runs the Windows operating system and can be handy if you want quick access to Oracle APEX.
+Windows VM is a virtual machine that runs the Windows operating system and can be handy if you want access to Oracle APEX User Interface.
 
 ```bash
 log_message "Creating Windows VM..."
@@ -191,6 +200,30 @@ DATABASE_ID=$(gcloud oracle-database autonomous-databases create $DATABASE_DISPL
 echo "Database ID: $DATABASE_DISPLAY_NAME" >> $LOG_FILE
 log_message "Database created successfully."
 ```
+
+Here is breakdown of the command
+
+- `--location`: select the region where you want database. Please mind here that this services is not availbie in all regions  
+  
+- `--display-name`: provide a name for your Oracle Autonomous Database  
+  
+- `--database`: provide a unique name for your Oracle Autonomous Database  
+  
+- `--network`: select the VPC network ID where you want to run your Oracle Autonomous Database
+  
+- `--cidr`: select the CIDR block for your subnet where you want to run your Oracle Autonomous Database  
+  
+- `--admin-password`: provide a strong password for the administrator account of your Oracle Autonomous Database  
+  
+- `--properties-compute-count=`: specify the number of compute resources to allocate for your Oracle Autonomous Database  
+  
+- `--properties-data-storage-size-gb`: specify the amount of data storage to allocate for your Oracle Autonomous Database  
+  
+- `--properties-db-version`: specify the version of Oracle Autonomous Database you want to use
+  
+- `--properties-license-type`: specify the license type for your Oracle Autonomous Database  
+  
+- `--properties-db-workload`: specify the workload type for your database (in this example, we are using OLTP)
 
 ### Connect to Oracle Database@Google Cloud
 
@@ -253,16 +286,13 @@ Replace `/path/to/instantclient_23_4` with the actual path where you extracted t
 - Unzip wallet by running
 
 ```bash
-unzip <Wallet_Name>.zip
+unzip <YOUR WALLET NAME>.zip
 ```
-
-Replac 
-
 
 - Export path to your wallet to TNS_ADMIN  
 
 ```bash
-export TNS_ADMIN=<PATH TO WALLET>
+export TNS_ADMIN=<PATH TO UNZIPPED WALLET>
 ```
 
 Replace `<PATH TO WALLET>` with the actual path where you extracted wallet zip.
